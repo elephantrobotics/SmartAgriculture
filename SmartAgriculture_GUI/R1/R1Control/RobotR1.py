@@ -9,7 +9,8 @@ import concurrent.futures
 import traceback
 import datetime
 
-
+valueOpen = 40
+valueClose = 12
 class RobotR1(MechArmController):
     def status_check(self):
         # 检查270是否已上电，未上电则上电
@@ -22,14 +23,14 @@ class RobotR1(MechArmController):
         time.sleep(1)
         
         # 打开夹爪 --> 设置夹爪零位校准
-        self.ma.set_gripper_state(0, 100)
-        time.sleep(1.5)
-        self.ma.set_gripper_calibration()
-        time.sleep(1)
+        # self.ma.set_gripper_state(0, 100)
+        # time.sleep(1.5)
+        # self.ma.set_gripper_calibration()
+        # time.sleep(1)
 
-        # 夹爪合上
-        self.gripper_close()
-        time.sleep(1)
+        # # 夹爪合上
+        # self.gripper_close()
+        # time.sleep(1)
 
         # 根据夹爪实际直径比例设置当前工具坐标系范围
         self.ma.set_tool_reference([0, 0, flexible_jaw_diameter, 0, 0, 0])
@@ -41,7 +42,7 @@ class RobotR1(MechArmController):
 
     def move_start(self, speed, delay):
         # 移动到初始姿态
-        self.ma.send_angles(self.robot_initial_pose, speed)
+        # self.ma.send_angles(self.robot_initial_pose, speed)
         time.sleep(delay)
 
     def robot_check(self):
@@ -69,7 +70,8 @@ class RobotR1(MechArmController):
         # old: [4.13, 14.67, -23.29, 79.71, 82.35, 0]
         # new: [2.02, 39.9, 11.68, 86.04, 85.86, 0]
         # self.robot_precatch_pose      = [2.0, 39.9, 11.68, 86.04, 85.86, 0]   # 机械臂抓取前初始预姿态角
-        self.robot_precatch_pose = [2.19, 35.13, 2.46, 89.2, 95.35, 10.81]  # 机械臂抓取前初始预姿态角
+        # self.robot_precatch_pose = [2.19, 35.13, 2.46, 89.2, 95.35, 10.81]  # 机械臂抓取前初始预姿态角
+        self.robot_precatch_pose = [2.19, 35.13, 2.46, 89.2, 95.35, -48]  # 机械臂抓取前初始预姿态角
 
         self.conveyor_waiting_point = [-6.0, -30.58, -36.65, 0, 84.81, 0]  # 传送带等待点
         self.conveyor_entry_point = [-89.0, -30.67, -36.65, 0, 84.81, 0]  # 传送带进入点
@@ -120,9 +122,13 @@ class RobotR1(MechArmController):
 
     # 根据相机真实坐标计算机械臂实际可移动世界坐标
     def target_coords(self):
+        # coord = [127.4, 170.4, 167.1, 85.37, -49.2, -169.09]
         coord = self.ma.get_coords()
+        logging.info(f"target_coords: {coord}")
         while len(coord) == 0:
             coord = self.ma.get_coords()
+            logging.info(f"target_coords: {coord}")
+            time.sleep(0.5)
 
         target = self.model_track()
         coord[:3] = target.copy()
@@ -161,31 +167,10 @@ class RobotR1(MechArmController):
             # a_waiting_point[self.Joints.J6.value] -= 100
             a_waiting_point[self.Joints.J6.value] -= 58
             self.ma.send_angles(a_waiting_point, 80)
-            time.sleep(1)  # 5
-            # self.ma.send_angle(6,-58, 70)
-            # time.sleep(5)
-            
-            # self.set_gripper_range(35, 100)
-            # time.sleep(2)
-            self.ma.set_gripper_value(40, 100)
+            time.sleep(3)  # 5
+            self.ma.set_gripper_value(valueOpen, 100)
             time.sleep(1.5)
             
-            # gripper_value = self.ma.get_gripper_value()
-            # time.sleep(1)
-            # while gripper_value <= 30 or 40 <= gripper_value:
-            #     self.set_gripper_range(35, 100)
-            #     time.sleep(1.5)
-            #     gripper_value = self.ma.get_gripper_value()
-                
-        
-            # self.set_gripper_range(75, 70)
-            # time.sleep(2)
-            # gripper_value = self.ma.get_gripper_value()
-            # # time.sleep(2)
-            # while gripper_value <= 30:
-            #     self.set_gripper_range(75, 70)
-            #     time.sleep(2)
-            #     gripper_value = self.ma.get_gripper_value()
             return self.reacquire_get_coords()
         except Exception as e:
             e = traceback.format_exc()
@@ -219,7 +204,7 @@ class RobotR1(MechArmController):
             # self.set_gripper_range(0, 100)
             # time.sleep(2)
             
-            self.ma.set_gripper_value(0, 100)
+            self.ma.set_gripper_value(valueClose, 100)
             time.sleep(1.5)
             
             # gripper_value = self.ma.get_gripper_value()
@@ -263,7 +248,7 @@ class RobotR1(MechArmController):
         # self.set_gripper_range(40, 100)
         # time.sleep(2)
         
-        self.ma.set_gripper_value(40, 100)
+        self.ma.set_gripper_value(valueOpen, 100)
         time.sleep(1.5)
         
         # gripper_value = self.ma.get_gripper_value()
@@ -278,7 +263,7 @@ class RobotR1(MechArmController):
         self.ma.send_angles(self.conveyor_restore_point, 80)
         time.sleep(delay)
 
-        self.gripper_close()
+        # self.gripper_close()
         time.sleep(delay)
 
     # 控制传送带移动到摄像头位置
@@ -310,7 +295,7 @@ class RobotR1(MechArmController):
                         f.write("R1: " + str(self.old_camera_coord_list) + "\n")
                 for camera_coord in self.old_camera_coord_list:
                     if camera_coord is not None:
-                        logging.info(f"Performing motion for camera coord: {camera_coord}")
+                        logging.info(f"GUI Performing motion for camera coord: {camera_coord}")
 
                         if len(camera_coord) == 3:
                             self.set_camera_coord(camera_coord[0], camera_coord[1], camera_coord[2])
@@ -320,25 +305,21 @@ class RobotR1(MechArmController):
 
                             # 摘取前姿态预调整
                             self.pickup_attitude_adjustment_action(speed, delay)
+                            time.sleep(0.1)
+                            self.ma.set_gripper_value(valueOpen, 100)
+                            time.sleep(1)
 
                             # 计算世界坐标
-                            self.target_coords()
-                            c_waiting_point = self.get_end_coords()
-                            logging.info(f"Waiting coords: {c_waiting_point}")
-
-                            # 摘取等待点动作
-                            c_entry_point = self.waiting_point_action(c_waiting_point, '-', 10, '-', 50.0, '+', 15.0,
-                                                                      40)
-                            logging.info(f"Entry coords: {c_entry_point}")
-
-                            # 摘取实际点动作
-                            self.pickup_point_action(c_entry_point, '-', 0, '+', 60, '+', 15, 60)
-                            # if camera_coord[0] < -40 and camera_coord[1] > 50:
-                            #     self.pickup_point_action(c_entry_point, '+', 10.0, '+', 60, '-', 1.0, 20)
-                            # elif camera_coord[0] > 40 and camera_coord[1] < -30:
-                            #     self.pickup_point_action(c_entry_point, '+', 5.0, '+', 55, '+', 6.0, 20)
-                            # else:
-                            #     self.pickup_point_action(c_entry_point, '+', 2.0, '+', 60, '-', 1.0, 20)
+                            fruit_coords = self.target_coords()
+                            fruit_coords_copy = fruit_coords.copy()
+                            logging.info(f"fruit_coords: {fruit_coords}")
+                            fruit_coords[1] -= 30;
+                            self.ma.send_coords(fruit_coords, speed, 1)
+                            time.sleep(1)
+                            self.ma.send_coord(2, fruit_coords_copy[1] + 15, speed)
+                            time.sleep(3)
+                            self.ma.set_gripper_value(valueClose, 100)
+                            time.sleep(2)
 
                             # 传送带轨迹规划动作
                             self.transport_to_conveyor_track_point_action(speed, delay)

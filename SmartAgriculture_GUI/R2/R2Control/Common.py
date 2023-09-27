@@ -1,5 +1,5 @@
 # 调试开关
-DEBUG = True
+DEBUG = False
 
 # 机械臂、传送带信息配置
 default_speed = 80

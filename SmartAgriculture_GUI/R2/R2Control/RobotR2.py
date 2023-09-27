@@ -5,7 +5,8 @@ import numpy as np
 import time
 import logging
 
-
+valueOpen = 40
+valueClose = 12
 class RobotR2(MechArmController):
     def status_check(self):
         # 检查270是否已上电，未上电则上电
@@ -17,14 +18,14 @@ class RobotR2(MechArmController):
         self.imputation_mode()
         time.sleep(1)
         
-        # 打开夹爪 --> 设置夹爪零位校准
-        self.ma.set_gripper_state(0, 100)
-        time.sleep(1.5)
-        self.ma.set_gripper_calibration()
-        time.sleep(1)
-        # 夹爪合上
-        self.gripper_close()
-        time.sleep(1)
+        # # 打开夹爪 --> 设置夹爪零位校准
+        # self.ma.set_gripper_state(0, 100)
+        # time.sleep(1.5)
+        # self.ma.set_gripper_calibration()
+        # time.sleep(1)
+        # # 夹爪合上
+        # self.gripper_close()
+        # time.sleep(1)
 
         # 根据夹爪实际直径比例设置当前工具坐标系范围
         self.ma.set_tool_reference([0, 0, flexible_jaw_diameter, 0, 0, 0])
@@ -36,7 +37,7 @@ class RobotR2(MechArmController):
 
     def move_start(self, speed, delay):
         # 移动到初始姿态
-        self.ma.send_angles(self.robot_initial_pose, speed)
+        # self.ma.send_angles(self.robot_initial_pose, speed)
         time.sleep(delay)
 
     def robot_check(self):
@@ -96,9 +97,10 @@ class RobotR2(MechArmController):
 
     # 根据相机真实坐标计算机械臂实际可移动世界坐标
     def target_coords(self):
-        coord = self.ma.get_coords()
-        while len(coord) == 0:
-            coord = self.ma.get_coords()
+        coord = [96.3, -12.1, 138.0, -176.54, 25.7, 178.41]
+        # coord = self.ma.get_coords()
+        # while len(coord) == 0:
+        #     coord = self.ma.get_coords()
 
         target = self.model_track()
         coord[:3] = target.copy()
@@ -146,7 +148,7 @@ class RobotR2(MechArmController):
         # time.sleep(2)
         
         # v20230720 update gripper control
-        self.ma.set_gripper_value(60, 100)
+        self.ma.set_gripper_value(valueOpen, 100)
         time.sleep(2)
         
         # gripper_value = self.ma.get_gripper_value()
@@ -171,7 +173,7 @@ class RobotR2(MechArmController):
         # time.sleep(2)
         
         # v20230720 update gripper control
-        self.ma.set_gripper_value(0, 100)
+        self.ma.set_gripper_value(valueClose, 100)
         time.sleep(1.5)
         
         # gripper_value = self.ma.get_gripper_value()
@@ -198,7 +200,7 @@ class RobotR2(MechArmController):
         # time.sleep(2)
         
         # v20230720 update gripper control
-        self.ma.set_gripper_value(60, 100)
+        self.ma.set_gripper_value(valueOpen, 100)
         time.sleep(1.5)
         # gripper_value = self.ma.get_gripper_value()
         # time.sleep(2)
@@ -215,7 +217,7 @@ class RobotR2(MechArmController):
         # time.sleep(3)
         
         # v20230720 update gripper control
-        self.ma.set_gripper_value(0, 100)
+        self.ma.set_gripper_value(valueClose, 100)
         time.sleep(1.5)
         
         # gripper_value = self.ma.get_gripper_value()
@@ -234,7 +236,7 @@ class RobotR2(MechArmController):
                     f.write("R2: " + str(self.old_camera_coord_list) + "\n")
             for camera_coord in self.old_camera_coord_list:
                 if camera_coord is not None:
-                    logging.info(f"Performing motion for camera coord: {camera_coord}")
+                    logging.info(f"R2:Performing motion for camera coord: {camera_coord}")
 
                     if len(camera_coord) == 3:
                         self.set_camera_coord(camera_coord[0], camera_coord[1], camera_coord[2])
@@ -246,18 +248,27 @@ class RobotR2(MechArmController):
                         self.pickup_attitude_adjustment_action(speed, delay)
 
                         # 计算世界坐标
-                        self.target_coords()
-                        c_waiting_point = self.get_end_coords()
-                        logging.info(f"Waiting coords: {c_waiting_point}")
+                        fruit_coords = self.target_coords()
+                        fruit_coords_copy = fruit_coords.copy()
+                        logging.info(f"fruit_coords: {fruit_coords}")
+                        fruit_coords[2] += 30;
+                        fruit_coords[0] -= 5;
+                        self.ma.set_gripper_value(valueOpen, 100)
+                        time.sleep(1)
+                        self.ma.send_coords(fruit_coords, speed, 1)
+                        time.sleep(3)
+                        self.ma.send_coord(3, fruit_coords_copy[2] - 10, speed)
+                        time.sleep(5)
+                        self.ma.set_gripper_value(valueClose, 100)
+                        time.sleep(2)
+                        # c_waiting_point = self.get_end_coords()
+                        # logging.info(f"Waiting coords: {c_waiting_point}")
 
-                        # 摘取等待点动作
-                        # c_entry_point = self.waiting_point_action(c_waiting_point, '-', 19.5, '+', 27, '+', 30, 20)
+                        # # 摘取等待点动作
+                        # c_entry_point = self.waiting_point_action(c_waiting_point, '+', 5, '+', 0, '+', 35, 50)
                         # logging.info(f"Entry coords: {c_entry_point}")
-                        c_entry_point = self.waiting_point_action(c_waiting_point, '+', 5, '+', 0, '+', 35, 50)
-                        logging.info(f"Entry coords: {c_entry_point}")
-                        # 摘取实际点动作
-                        # self.pickup_point_action(c_entry_point, '-', 0.5, '-', 0.5, '-', 25.0, 20)
-                        self.pickup_point_action(c_entry_point, '+', 5, '+', 0, '-', 40.0, 50)
+                        # # 摘取实际点动作
+                        # self.pickup_point_action(c_entry_point, '+', 5, '+', 0, '-', 40.0, 50)
                         # 放置果子
                         self.place_fruit(speed, delay)
 
@@ -275,9 +286,9 @@ class RobotR2(MechArmController):
 
     def motion(self, camera_coord_list, fruit_type, speed=default_speed, delay=default_delay):
         self.old_camera_coord_list = camera_coord_list
-        if DEBUG:
-            with open("log.txt", "a") as f:
-                f.write(" R2 :" + str(self.server.start_move) + str(self.old_camera_coord_list) + "\n")
+        # if DEBUG:
+        with open("./error.log", "a") as f:
+            f.write(" R2 :" + str(self.server.start_move) + str(self.old_camera_coord_list) + "\n")
         if self.server.start_move and (self.old_camera_coord_list == []):
             self.nothing_count += 1
         if self.nothing_count > 20:
